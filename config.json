@@ -1,0 +1,7 @@
+{
+    "clap_sensitivity": 0.05,
+    "clap_timeout": 1.0,
+    "mic_device": null,
+    "voice_enabled": true,
+    "startup_announcement": true
+}
