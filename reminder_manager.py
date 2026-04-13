@@ -145,3 +145,38 @@ class ReminderManager:
             if deleted_count > 0:
                 print(f"🗑️  Auto-deleted {deleted_count} completed task(s) older than {hours} hour(s)")
             return deleted_count
+
+    def list_all_reminders(self):
+        """Get all reminders (active and completed)"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('SELECT * FROM reminders ORDER BY time')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def list_active_reminders(self):
+        """Get only active (uncompleted) reminders"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                'SELECT * FROM reminders WHERE completed = 0 ORDER BY time'
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def delete_reminder_by_name(self, task_name):
+        """Delete reminder by task name (case-insensitive)"""
+        with sqlite3.connect(self.db_path) as conn:
+            # Find matching tasks
+            cursor = conn.execute(
+                "SELECT id FROM reminders WHERE LOWER(task) LIKE ?",
+                (f"%{task_name.lower()}%",)
+            )
+            matching_ids = [row[0] for row in cursor.fetchall()]
+            
+            if not matching_ids:
+                return 0
+            
+            # Delete all matches
+            for reminder_id in matching_ids:
+                conn.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
+            conn.commit()
+            return len(matching_ids)

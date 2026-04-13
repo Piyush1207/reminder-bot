@@ -4,12 +4,18 @@ import sys
 import json
 import os
 import queue
+import io
+
+# Fix Unicode support on Windows
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 from clap_detector import ClapDetector
 from reminder_manager import ReminderManager
 from app_launcher import AppLauncher
 from scheduler import ReminderScheduler
 from speaker import speak
+from job_alert_monitor import JobAlertMonitor
 
 # voice_commands requires PyAudio — import is optional
 try:
@@ -36,6 +42,7 @@ class ReminderBot:
         self.reminder_manager = ReminderManager()
         self.app_launcher = AppLauncher()
         self.scheduler = ReminderScheduler(self.reminder_manager)
+        self.job_monitor = JobAlertMonitor()
         self.config = self._load_config()
 
         self.voice_recognizer = None
@@ -43,7 +50,6 @@ class ReminderBot:
             try:
                 self.voice_recognizer = VoiceRecognizer()
                 if not self.voice_recognizer.available:
-                    # Microphone failed inside VoiceRecognizer.__init__
                     self.voice_recognizer = None
             except Exception as e:
                 print(f"⚠️  Voice recogniser failed: {e}")
@@ -100,9 +106,6 @@ class ReminderBot:
         """
         Collect user input — keyboard and voice run simultaneously.
         The first non-empty response wins.
-
-        The stdin reader thread is always running, so keyboard works even
-        when called from a non-main thread (clap handler).
         """
         speak(voice_prompt or prompt_text)
 
@@ -117,11 +120,14 @@ class ReminderBot:
 
         # Voice listener thread
         def _listen_voice():
-            if self.voice_recognizer:
-                val = self.voice_recognizer.listen_for_command(timeout=timeout)
-                if val and not done.is_set():
-                    result_holder[0] = val
-                    done.set()
+            if self.voice_recognizer and self.voice_recognizer.available:
+                try:
+                    val = self.voice_recognizer.listen_for_command(timeout=timeout)
+                    if val and not done.is_set():
+                        result_holder[0] = val
+                        done.set()
+                except Exception as e:
+                    print(f"\n⚠️ Voice recognition error: {e}")
 
         voice_thread = threading.Thread(target=_listen_voice, daemon=True)
         voice_thread.start()
@@ -138,14 +144,14 @@ class ReminderBot:
             except queue.Empty:
                 pass
 
-        done.set()  # signal voice thread to stop waiting
+        done.set()
         voice_thread.join(timeout=0.5)
 
         val = (result_holder[0] or "").lower().strip()
         if val:
-            print(val)  # echo what was received (voice input isn't echoed)
+            print(val)
         else:
-            print()     # newline so terminal isn't left on prompt line
+            print()
         return val
 
     # ── Startup ───────────────────────────────────────────────────────────────
@@ -175,6 +181,7 @@ class ReminderBot:
     # ── Clap handler ──────────────────────────────────────────────────────────
 
     def handle_clap(self):
+        """Handle two claps detection"""
         if self.processing_command:
             print("\n👏 Clap detected but bot is busy. Please wait...")
             return
@@ -190,12 +197,12 @@ class ReminderBot:
 
             mode_hint = "(voice or keyboard)" if self.voice_recognizer else "(type and press Enter)"
             print(f"\n📋 Available commands {mode_hint}:")
-            print("   reminders · add · browser · spotify · files · exit\n")
+            print("   reminders · add · delete · browser · spotify · files · jobs · saved jobs · exit\n")
 
             command = self._get_input(
                 prompt_text="Command:",
                 voice_prompt="What would you like to do?",
-                timeout=10,
+                timeout=5,
             )
 
             self._dispatch_command(command)
@@ -207,14 +214,31 @@ class ReminderBot:
             print("\n🎧 Listening. Clap twice to activate.\n")
 
     def _dispatch_command(self, command: str):
+        """Dispatch commands to appropriate handlers"""
         if not command:
             speak("No command received. Try again.")
             return
 
-        if "reminder" in command and "add" not in command:
+        # Job alert commands
+        if "jobs" in command and "saved" not in command and "stop" not in command:
+            speak("Checking for new MERN stack jobs")
+            self.job_monitor.check_now()
+        elif "saved jobs" in command or "show jobs" in command:
+            self.job_monitor.show_saved_jobs()
+        elif "stop jobs" in command or "pause jobs" in command:
+            self.job_monitor.stop_monitoring()
+            speak("Job monitoring paused")
+        elif "resume jobs" in command or "start jobs" in command:
+            self.job_monitor.start_monitoring()
+            speak("Job monitoring resumed")
+        # Reminder commands
+        elif "reminder" in command and "add" not in command and "delete" not in command and "remove" not in command:
             self.read_today_reminders()
-        elif "add" in command:
+        elif "add" in command and "task" not in command:
             self.add_reminder_interactive()
+        elif "delete" in command or "remove" in command or "remove task" in command or "delete task" in command:
+            self.delete_reminder_interactive()
+        # General commands
         elif "browser" in command:
             self.app_launcher.open_browser()
             speak("Opening browser")
@@ -233,6 +257,7 @@ class ReminderBot:
     # ── Commands ──────────────────────────────────────────────────────────────
 
     def read_today_reminders(self):
+        """Read today's reminders aloud"""
         reminders = self.reminder_manager.get_today_reminders()
         if reminders:
             print(f"\n📅 Today's Reminders ({len(reminders)}):")
@@ -247,6 +272,7 @@ class ReminderBot:
             speak("No reminders for today")
 
     def add_reminder_interactive(self):
+        """Add a new reminder interactively"""
         print("\n➕ ADD NEW REMINDER")
 
         task = self._get_input(
@@ -268,8 +294,8 @@ class ReminderBot:
             return
 
         # Normalise spoken time if voice was used
-        if _VOICE_AVAILABLE:
-            time_str = VoiceRecognizer._parse_spoken_time(time_str)
+        if _VOICE_AVAILABLE and self.voice_recognizer:
+            time_str = self.voice_recognizer._parse_spoken_time(time_str)
 
         try:
             from datetime import datetime as dt
@@ -281,9 +307,59 @@ class ReminderBot:
             print("❌ Invalid time format. Use HH:MM (e.g., 09:30)")
             speak("Invalid time format. Please try again using H H colon M M.")
 
+    def delete_reminder_interactive(self):
+        """Delete reminders interactively"""
+        print("\n🗑️  DELETE REMINDER")
+        
+        # Show active reminders
+        active = self.reminder_manager.list_active_reminders()
+        if not active:
+            print("No active reminders to delete")
+            speak("No active reminders to delete")
+            return
+        
+        print("\n📋 Active Reminders:")
+        for i, r in enumerate(active, 1):
+            recurrence = f"on {r['date']}" if r['date'] else "(daily)"
+            print(f"  {i}. [{r['id']}] {r['time']} - {r['task']} {recurrence}")
+        
+        speak(f"Which reminder would you like to delete? I found {len(active)} active reminders.")
+        
+        choice = self._get_input(
+            prompt_text="Enter reminder number or task name to delete:",
+            voice_prompt="Task number or name?",
+            timeout=8,
+        )
+        
+        if not choice:
+            speak("Cancelled.")
+            return
+        
+        # Try parsing as ID number first
+        try:
+            reminder_id = int(choice.strip())
+            # Verify it exists
+            if any(r['id'] == reminder_id for r in active):
+                self.reminder_manager.delete_reminder(reminder_id)
+                print(f"✅ Reminder {reminder_id} deleted")
+                speak(f"Reminder deleted")
+                return
+        except ValueError:
+            pass
+        
+        # Try matching by task name
+        deleted_count = self.reminder_manager.delete_reminder_by_name(choice)
+        if deleted_count > 0:
+            print(f"✅ Deleted {deleted_count} reminder(s) matching '{choice}'")
+            speak(f"Deleted {deleted_count} reminder")
+        else:
+            print(f"❌ No reminders found matching '{choice}'")
+            speak("No reminders found with that name")
+
     # ── Main loop ─────────────────────────────────────────────────────────────
 
     def run(self):
+        """Main bot loop"""
         if self.config.get("startup_announcement", True):
             self.startup_routine()
 
@@ -306,6 +382,7 @@ class ReminderBot:
                 time.sleep(0.1)
         except KeyboardInterrupt:
             print("\n\n👋 Shutting down...")
+            self.job_monitor.stop_monitoring()
             self.clap_detector.stop()
             self.scheduler.stop()
             sys.exit(0)

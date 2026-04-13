@@ -3,5 +3,6 @@
     "clap_timeout": 1.0,
     "mic_device": null,
     "voice_enabled": true,
+    "voice_timeout": 5,
     "startup_announcement": true
 }

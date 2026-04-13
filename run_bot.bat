@@ -1,4 +1,4 @@
 @echo off
-cd /d "C:\Projects\reminder bot"
+cd /d "%~dp0"
 python main.py
 pause

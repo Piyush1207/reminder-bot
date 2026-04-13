@@ -1,0 +1,50 @@
+{
+    "api_provider": "theirstack",
+    "api_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXIiOjEsImp0aSI6IjdlZWZkNDdiLTE1YmEtNDgzOC1iOTRjLWQ1Njg1NGE4OTQ0NCIsImNyZWF0ZWRfYnkiOjE1NzMwMiwicGVybWlzc2lvbnMiOltdLCJhdWQiOiJhcGkiLCJpYXQiOjE3NzU4NDk0ODksInN1YiI6IjE1NjYzMyIsIm5hbWUiOiJKb2IxIiwiZW1haWwiOiJoaWNhcGkxOTUyQG55c3ByaW5nLmNvbSJ9.Lwkh3S3yPreh7pO1Yq42dxIjFlBttWt_c8xCkAQ7Uxs",
+    "user_profile": {
+        "name": "Piyush",
+        "current_role": "MERN-Stack Developer",
+        "experience_years": 1.5,
+        "tech_stack": ["MERN", "React", "Node.js", "Express", "MongoDB", "Next.js", "React Native"],
+        "location": "Nagpur, India",
+        "remote_preference": "remote",
+        "salary_min": 300000,
+        "salary_max": 600000
+    },
+    "search_criteria": {
+        "keywords": ["Front-end",
+            "MERN", "MERN Stack", "Full Stack", "React", "Node.js", 
+            "MongoDB", "Express", "Next.js", "React Native",
+            "JavaScript", "MEAN", "Full Stack Developer"
+        ],
+        "job_titles": [
+            "Front-end Developer",
+            "MERN Stack Developer", 
+            "Full Stack Developer", 
+            "React Developer",
+            "Node.js Developer",
+            "Software Engineer - Full Stack",
+            "Junior Full Stack Developer",
+            "Associate Software Engineer"
+        ],
+        "locations": ["Remote", "India", "Nagpur", "Pune", "Mumbai", "Bangalore", "Hyderabad", "Gurgaon", "Surat", "Gujarat", "Ahmedabad"],
+        "remote_only": true,
+        "min_salary": 300000,
+        "max_salary": 600000,
+        "job_types": ["full-time", "contract", "remote"],
+        "experience_level": ["entry", "junior", "mid"],
+        "must_have_skills": ["React", "Node.js", "MongoDB"],
+        "nice_to_have_skills": ["Next.js", "React Native", "TypeScript", "AWS"]
+    },
+    "notification_settings": {
+        "check_interval_minutes": 60,
+        "max_jobs_per_notification": 5,
+        "min_match_score": 40,
+        "channels": ["speak", "desktop_notification"],
+        "quiet_hours": {
+            "enabled": true,
+            "start": "22:00",
+            "end": "09:00"
+        }
+    }
+}

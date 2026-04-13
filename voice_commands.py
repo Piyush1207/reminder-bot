@@ -1,62 +1,70 @@
+from __future__ import annotations
+
 import re
 import speech_recognition as sr
 import time
 import threading
-import sounddevice as sd
-import numpy as np
 
 
 class VoiceRecognizer:
     def __init__(self):
         self.recognizer = sr.Recognizer()
-        self.sample_rate = 16000
         self.available = False
         self._init_microphone()
 
     def _init_microphone(self):
+        """Initialize microphone"""
         try:
-            sd.check_input_settings()
-            print("🎤 Microphone available for voice commands")
-            print("✅ Voice recognition ready")
-            self.available = True
+            # Test if microphone is available
+            with sr.Microphone() as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                print("🎤 Microphone available for voice commands")
+                print("✅ Voice recognition ready")
+                self.available = True
         except Exception as e:
             print(f"❌ Microphone error: {e}")
             self.available = False
 
     def listen_for_command(self, timeout=5) -> str | None:
-        """Listen for a voice command and return it as lowercase text, or None."""
+        """
+        Listen for a voice command and return it as lowercase text, or None.
+        """
         if not self.available:
             return None
+        
         try:
-            print("🎤 Listening...")
-            # Record for the timeout duration
-            recording = sd.rec(int(timeout * self.sample_rate), samplerate=self.sample_rate, channels=1, dtype='int16')
-            sd.wait()
-            audio_data = np.array(recording).flatten()
-            audio = sr.AudioData(audio_data.tobytes(), self.sample_rate, 2)
+            print("🎤 Listening for command...")
+            
+            with sr.Microphone() as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.3)
+                audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=5)
+            
             print("🔄 Processing...")
             text = self.recognizer.recognize_google(audio)
             print(f"📝 Recognised: '{text}'")
             return text.lower()
-        except sd.PortAudioError:
-            print("❌ Microphone not available")
-            self.available = False
-            return None
+            
         except sr.WaitTimeoutError:
             print("⏰ No speech detected")
+            return None
         except sr.UnknownValueError:
             print("❓ Could not understand audio")
+            return None
         except sr.RequestError as e:
             print(f"❌ Recognition service error: {e}")
+            print("💡 Check your internet connection")
+            return None
         except Exception as e:
             print(f"❌ Error: {e}")
-        return None
+            return None
 
     def listen_for_task(self) -> str | None:
+        """Listen specifically for a task description"""
         print("🎤 Please say your task clearly...")
         return self.listen_for_command(timeout=8)
 
     def listen_for_time(self) -> str | None:
+        """Listen for time (e.g., 'two PM' or '14:30')"""
         print("🎤 Please say the time...")
         raw = self.listen_for_command(timeout=5)
         if raw:
@@ -71,7 +79,6 @@ class VoiceRecognizer:
           - "two PM"  -> "14:00"
           - "9:30 AM" -> "09:30"
           - "14:30"   -> "14:30"
-          - Falls back to original text if nothing matches.
         """
         if not text:
             return text
@@ -108,12 +115,10 @@ class VoiceRecognizer:
                 hour = 0
             return f"{hour:02d}:{minute:02d}"
 
-        # Return as-is and let the caller validate
         return text
 
 
-# ── Module-level convenience functions ────────────────────────────────────────
-
+# Module-level convenience functions
 _recognizer: VoiceRecognizer | None = None
 
 

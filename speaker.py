@@ -77,23 +77,23 @@ def _make_engine():
             subprocess.run(["espeak", "--version"],
                            capture_output=True, check=True)
             print("✅ TTS: espeak ready")
-
+            
             def _speak(text):
                 try:
                     subprocess.run(["espeak", text], check=True)
                 except Exception as e:
                     print(f"❌ espeak error: {e}")
-
+            
             return _speak, "espeak"
         except Exception:
             pass
-
+    
     # ── Print-only fallback ───────────────────────────────────────────────────
     print("⚠️  No TTS engine found. Speech will be printed only.")
-
+    
     def _speak(text):
         pass  # already printed by the speak() wrapper below
-
+    
     return _speak, "print"
 
 

@@ -2,6 +2,7 @@ import threading
 import time
 from datetime import datetime
 from speaker import speak_sync as speak
+from plyer import notification
 
 
 class ReminderScheduler:
@@ -54,6 +55,16 @@ class ReminderScheduler:
 
                 print(f"\n⏰ REMINDER: {reminder['task']} at {reminder['time']}")
                 speak(f"Reminder: {reminder['task']}")
+                
+                # Send desktop notification
+                try:
+                    notification.notify(
+                        title="Reminder Bot",
+                        message=reminder['task'],
+                        timeout=5
+                    )
+                except Exception as e:
+                    print(f"⚠️ Notification error: {e}")
 
                 # mark_triggered handles one-time vs recurring correctly
                 self.reminder_manager.mark_triggered(reminder['id'])

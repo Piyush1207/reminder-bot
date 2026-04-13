@@ -1,0 +1,20 @@
+# ── Core audio / speech ────────────────────────────────────────────────────────
+sounddevice>=0.4.6          # microphone stream for clap detection
+numpy>=1.24.0               # RMS volume calculation
+SpeechRecognition>=3.10.0   # Google STT for voice commands
+PyAudio>=0.2.13             # backend required by SpeechRecognition microphone input
+
+# ── Text-to-speech (TTS) ───────────────────────────────────────────────────────
+pyttsx3>=2.90               # cross-platform TTS fallback (Linux / older Windows)
+pywin32>=306                # Windows SAPI TTS (win32com); Windows only
+
+# ── Desktop notifications ──────────────────────────────────────────────────────
+plyer>=2.1.0                # cross-platform desktop notification API
+
+# ── Job alert monitor ─────────────────────────────────────────────────────────
+requests>=2.31.0            # HTTP client for TheirStack API + scraping
+beautifulsoup4>=4.12.0      # HTML parsing for web scraping fallback
+lxml>=4.9.0                 # faster HTML parser backend for bs4
+
+# ── Standard-library modules used (no install needed) ─────────────────────────
+# sqlite3, threading, json, queue, time, subprocess, platform, os, re, difflib
